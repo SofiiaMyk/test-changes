@@ -1,22 +1,15 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE hibernate-configuration
+<?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE hibernate-configuration
     PUBLIC "-//Hibernate/Hibernate Configuration DTD//EN"
-    "http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd">
-
-<hibernate-configuration>
+    "http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd"> <hibernate-configuration>
 	<session-factory>
-
 		<!-- local connection properties -->
-		<property name="hibernate.connection.driver_class">net.sourceforge.jtds.jdbc.Driver</property>
-		<property name="dialect">org.hibernate.dialect.SQLServerDialect</property>
-		<property name="hibernate.connection.url">jdbc:jtds:sqlserver://streamer2005.softserveinc.com/_055_OMS_test;instance=tc;</property>
-		<property name="hibernate.connection.username">055db</property>
-		<property name="hibernate.connection.password">055db</property>
-
-		<property name="hibernate.hbm2ddl.auto">create-drop</property>
-
+		<property name="hibernate.connection.driver_class">com.mysql.jdbc.Driver</property>
+		<property name="dialect">org.hibernate.dialect.MySQL5Dialect</property>
+		<property name="hibernate.connection.url">jdbc:mysql://xen-vm-03.training.local/_056_DB</property>
+		<property name="hibernate.connection.username">056db</property>
+		<property name="hibernate.connection.password">056db</property>
+		<property name="hibernate.hbm2ddl.auto">validate</property>
 		<!--<property name="show_sql">true</property> <property name="format_sql">true</property> -->
-
 		<mapping class="com.softserveinc.edu.oms.domain.entities.Role" />
 		<mapping class="com.softserveinc.edu.oms.domain.entities.Region" />
 		<mapping class="com.softserveinc.edu.oms.domain.entities.CustomerType" />
@@ -27,6 +20,4 @@
 		<mapping class="com.softserveinc.edu.oms.domain.entities.Dimension" />
 		<mapping class="com.softserveinc.edu.oms.domain.entities.OrderItem" />
 		<mapping class="com.softserveinc.edu.oms.domain.entities.CreditCardType" />
-
-	</session-factory>
-</hibernate-configuration>
+	</session-factory> </hibernate-configuration>
