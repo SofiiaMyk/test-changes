@@ -252,7 +252,8 @@
 		</repository>
 	</repositories>
 	<build>
-		<plugins>
+	<finalName>OMS</finalName>	
+	<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -389,8 +390,20 @@
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>tomcat-maven-plugin</artifactId>
-				<version>1.0-beta-1</version>
+				<configuration>
+					<url>http://class73-vm13.training.local:8080/manager/text</url>
+					<server>TomcatServer</server>
+					<path>/OMS</path>
+					<username>admin</username>
+					<password>password</password>
+				</configuration>
 			</plugin>
+			
+			
+
+
 		</plugins>
 	</build>
 </project>
+
+
