@@ -2,6 +2,11 @@ name: Test Skopeo GHCR publish
 
 on:
   workflow_dispatch:
+    inputs:
+      project-type:
+        description: Project type to simulate (e.g. ci or internal)
+        required: false
+        default: ci
   push:
     branches:
       - main
@@ -27,6 +32,7 @@ jobs:
           docker build -t "${IMAGE_NAME}:${IMAGE_TAG}" .
 
       - name: Copy image to GHCR via Skopeo
+        if: ${{ inputs.project-type == 'ci' }}
         run: |
           # lowercase owner as required by GHCR
           OWNER="${{ github.repository_owner }}"
