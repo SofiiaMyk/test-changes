@@ -1,0 +1,49 @@
+name: Test Skopeo GHCR publish
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  test-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    env:
+      IMAGE_NAME: ci-test-image
+      IMAGE_TAG: latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          OWNER="${{ github.repository_owner }}"
+          OWNER="${OWNER,,}"
+          docker build -t "${IMAGE_NAME}:${IMAGE_TAG}" .
+
+      - name: Copy image to GHCR via Skopeo
+        run: |
+          # lowercase owner as required by GHCR
+          OWNER="${{ github.repository_owner }}"
+          OWNER="${OWNER,,}"
+          DEST="ghcr.io/${OWNER}/${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "Copying docker-daemon:${IMAGE_NAME}:${IMAGE_TAG} to ${DEST} ..."
+
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            quay.io/skopeo/stable:v1.18.0-immutable@sha256:3e5efe94472b0a1887b3460e55c9d4eaf7ec62b73395c6ac5916b88390377dee \
+            copy \
+            --retry-times 3 \
+            --dest-creds "${GHCR_USERNAME}:${GHCR_TOKEN}" \
+            "docker-daemon:${IMAGE_NAME}:${IMAGE_TAG}" \
+            "docker://${DEST}"
+
+          echo "Published: ${DEST}" >> $GITHUB_STEP_SUMMARY
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USERNAME: ${{ github.actor }}
