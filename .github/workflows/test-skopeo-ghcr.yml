@@ -53,3 +53,27 @@ jobs:
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USERNAME: ${{ github.actor }}
+
+      - name: Copy image to GHCR via Skopeo (remote-to-remote)
+        if: ${{ inputs.project-type == 'ci' }}
+        run: |
+          # Tests docker:// → docker:// transport, same as Harbor → GHCR in real action
+          OWNER="${{ github.repository_owner }}"
+          OWNER="${OWNER,,}"
+          SRC="docker.io/library/hello-world:latest"
+          DEST="ghcr.io/${OWNER}/ci-test-remote-copy:latest"
+          echo "Copying ${SRC} to ${DEST} ..."
+
+          docker run --rm \
+            quay.io/skopeo/stable:v1.18.0-immutable@sha256:3e5efe94472b0a1887b3460e55c9d4eaf7ec62b73395c6ac5916b88390377dee \
+            copy \
+            --all \
+            --retry-times 3 \
+            --dest-creds "${GHCR_USERNAME}:${GHCR_TOKEN}" \
+            "docker://${SRC}" \
+            "docker://${DEST}"
+
+          echo "Remote-to-remote published: ${DEST}" >> $GITHUB_STEP_SUMMARY
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USERNAME: ${{ github.actor }}
