@@ -2,11 +2,6 @@ name: Test cosign copy with signatures
 
 on:
   workflow_dispatch:
-    inputs:
-      project-type:
-        description: Project type to simulate (e.g. ci or internal)
-        required: false
-        default: ci
   push:
     branches:
       - main
@@ -29,34 +24,48 @@ jobs:
       - name: Install Cosign
         uses: sigstore/cosign-installer@3454372f43399081ed03b604cb2d021dabca52bb # v3.8.2
 
-      - name: Build and push staging image
+      - name: Build image
+        run: docker build -t "${IMAGE_NAME}:latest" .
+
+      # Simulates: build job pushes to Harbor github-actions-artifacts
+      - name: Push to staging (simulates Harbor github-actions-artifacts)
         run: |
           OWNER="${OWNER,,}"
-          docker build -t "${IMAGE_NAME}:staging" .
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-          docker tag "${IMAGE_NAME}:staging" "ghcr.io/${OWNER}/${IMAGE_NAME}:staging"
-          docker push "ghcr.io/${OWNER}/${IMAGE_NAME}:staging"
-          echo "STAGING_IMAGE=ghcr.io/${OWNER}/${IMAGE_NAME}:staging" >> $GITHUB_ENV
+          docker tag "${IMAGE_NAME}:latest" "ghcr.io/${OWNER}/github-actions-artifacts/${IMAGE_NAME}:v1.0.0"
+          docker push "ghcr.io/${OWNER}/github-actions-artifacts/${IMAGE_NAME}:v1.0.0"
+          echo "STAGING=ghcr.io/${OWNER}/github-actions-artifacts/${IMAGE_NAME}:v1.0.0" >> $GITHUB_ENV
 
+      # Simulates: sign job
       - name: Sign staging image
         run: |
-          cosign sign --yes "${STAGING_IMAGE}"
-          echo "Signed: ${STAGING_IMAGE}" >> $GITHUB_STEP_SUMMARY
+          cosign sign --yes "${STAGING}"
+          echo "✅ Signed: ${STAGING}" >> $GITHUB_STEP_SUMMARY
 
-      - name: "[REPRODUCE ERROR] skopeo copy - signatures will NOT transfer"
+      # Simulates: Copy signatures to Harbor destination step
+      - name: cosign copy staging → Harbor ci (simulates Harbor→Harbor with signatures)
         run: |
           OWNER="${OWNER,,}"
-          DEST="ghcr.io/${OWNER}/${IMAGE_NAME}:skopeo-copy"
-          echo "Copying via skopeo: ${STAGING_IMAGE} → ${DEST}"
-          docker run --rm \
-            quay.io/skopeo/stable:v1.18.0-immutable@sha256:3e5efe94472b0a1887b3460e55c9d4eaf7ec62b73395c6ac5916b88390377dee \
-            copy \
-            --all \
-            --retry-times 3 \
-            --dest-creds "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" \
-            --src-creds "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" \
-            "docker://${STAGING_IMAGE}" \
-            "docker://${DEST}"
-          echo "skopeo-copy done — check GHCR for missing .sig tag on ${DEST}" >> $GITHUB_STEP_SUMMARY
+          DEST="ghcr.io/${OWNER}/ci/${IMAGE_NAME}:v1.0.0"
+          echo "Copying ${STAGING} to ${DEST} ..."
+          cosign copy "${STAGING}" "${DEST}"
+          echo "HARBOR_DEST=${DEST}" >> $GITHUB_ENV
+          echo "✅ Harbor ci copy done: ${DEST}" >> $GITHUB_STEP_SUMMARY
 
+      # Simulates: Publish to GHCR step
+      - name: cosign copy staging → GHCR final (simulates Publish to GHCR)
+        run: |
+          OWNER="${OWNER,,}"
+          DEST="ghcr.io/${OWNER}/${IMAGE_NAME}:v1.0.0"
+          echo "Copying ${STAGING} to ${DEST} ..."
+          cosign copy "${STAGING}" "${DEST}"
+          echo "GHCR_DEST=${DEST}" >> $GITHUB_ENV
+          echo "✅ GHCR publish done: ${DEST}" >> $GITHUB_STEP_SUMMARY
 
+      - name: Verify signatures on all destinations
+        run: |
+          VERIFY="cosign verify --certificate-identity-regexp=.* --certificate-oidc-issuer=https://token.actions.githubusercontent.com"
+
+          echo "=== staging (source) ===" && $VERIFY "${STAGING}" && echo "✅ signed" || echo "❌ not signed"
+          echo "=== Harbor ci (Harbor→Harbor copy) ===" && $VERIFY "${HARBOR_DEST}" && echo "✅ signed" || echo "❌ not signed"
+          echo "=== GHCR final (Publish to GHCR copy) ===" && $VERIFY "${GHCR_DEST}" && echo "✅ signed" || echo "❌ not signed"
